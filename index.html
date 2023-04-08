@@ -1,0 +1,444 @@
+<!-- crossword using Javascript and xml -->
+<!-- Author Debjyoti Mukherjee -->
+
+
+<html>
+
+<head>
+    <script>
+        var maxCol = 13;
+        var maxRow = 13;
+        var cx;
+        var cy;
+        var curId = 0;
+        var xmlDoc;
+        var tempFill;
+        var ansFlag = true;
+
+        // initialize the board
+        function init() {
+            C = document.getElementById("cw");
+            for (let i = 0; i < maxRow; i++)
+                for (let j = 0; j < maxCol; j++) {
+                    let rid = i * maxRow + j;
+                    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    r.setAttribute('x', j * 30);
+                    r.setAttribute('y', i * 30);
+                    r.setAttribute('height', '30');
+                    r.setAttribute('width', '30');
+                    r.setAttribute('id', rid.toString());
+                    r.setAttribute('stroke', 'black');
+                    r.setAttribute('fill', 'black');
+                    C.appendChild(r);
+                    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    t.setAttribute('x', j * 30 + 10);
+                    t.setAttribute('y', i * 30 + 20);
+                    t.setAttribute('font-size', 'lem');
+                    t.setAttribute('id', "t" + rid.toString());
+                    C.appendChild(t);
+                    const m = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    m.setAttribute('x', j * 30 + 3);
+                    m.setAttribute('y', i * 30 + 12);
+                    m.setAttribute('font-size', 'lem');
+                    m.setAttribute('id', "m" + rid.toString());
+                    m.setAttribute('style', 'vertical-align: super;font-size: xx-small;')
+                    C.appendChild(m);
+                }
+
+            C.addEventListener('mousedown', position, true);
+            window.addEventListener('keydown', text, true);
+        }
+
+        // handle all arrow key press activity
+        document.onkeydown = function (e) {
+
+            switch (e.keyCode) {
+                case 37:
+                    positionByArrow('white');
+                    console.log('Left Key pressed!');
+                    if (curId != null) {
+                        curId--;
+                        if (curId >= 0) {
+                            positionByArrow('skyblue');
+                        }
+                        else {
+                            curId = 0;
+                        }
+                    }
+                    break;
+                case 38:
+                    positionByArrow('white');
+                    console.log('Up Key pressed!');
+                    if (curId != null) {
+                        if (curId - maxRow >= 0) {
+                            curId -= maxRow;
+                            positionByArrow('skyblue');
+                        }
+                    }
+                    break;
+                case 39:
+                    positionByArrow('white');
+                    console.log('Right Key pressed!');
+                    if (curId != null) {
+                        curId++;
+                        if (curId < maxRow * maxCol) {
+                            positionByArrow('skyblue');
+                        }
+                        else {
+                            curId = maxRow * maxCol;
+                        }
+                    }
+                    break;
+                case 40:
+                    positionByArrow('white');
+                    console.log('Down Key pressed!');
+                    if (curId != null) {
+                        if (curId + maxRow < maxRow * maxCol) {
+                            curId += maxRow;
+                            positionByArrow('skyblue');
+                        }
+                    }
+                    break;
+            }
+        };
+
+        // when arrow pressed then perform fill the svg box according to the argument
+        function positionByArrow(curColor) {
+            let rec = document.getElementById(curId);
+            let color = rec.getAttribute('fill');
+            if (color != 'black') {     // if black then no answer there
+                rec.setAttribute('fill', curColor);
+                showClue();
+            }
+        }
+
+        // highlight the clue
+        function showClue() {
+            // make all hint white
+            let acrHint = document.getElementsByClassName('acr');
+            for (let i = 0; i < acrHint.length; i++) {
+                acrHint[i].style.backgroundColor = "white";
+            }
+            let dwnHint = document.getElementsByClassName('dwn');
+            for (let i = 0; i < dwnHint.length; i++) {
+                dwnHint[i].style.backgroundColor = "white";
+            }
+
+            // make required hint yellow
+            let hintNumber;
+            if (document.getElementById('m' + curId).innerHTML != '') {
+                hintNumber = document.getElementById('m' + curId).innerHTML;
+            }
+            else {
+                hintNumber = document.getElementById('m' + curId).getAttribute('data-hint-number')
+            }
+            document.getElementById('h' + hintNumber).style.backgroundColor = "yellow";
+
+        }
+
+        // input text in boxes
+        function text(e) {
+            let ch = String.fromCharCode(e.keyCode);
+            let b = cy * maxRow + cx;
+            let tid = "t" + curId;
+            if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')){
+                document.getElementById(tid).innerHTML = ch;
+            }
+        }
+
+        // change position of current box by mouse click
+        function position(e) {
+            positionByArrow('white');
+            cx = Math.floor(e.offsetX / 30);
+            cy = Math.floor(e.offsetY / 30);
+            let rid = cy * maxRow + cx;
+            let rr = rid.toString();
+            let rec = document.getElementById(rr);
+            let color = rec.getAttribute('fill');
+            if (color != 'black') {
+                rec.setAttribute('fill', 'skyblue');
+                curId = rid;
+            }
+            showClue();
+        }
+
+        // load the hints
+        function loadXML() {
+            let xml = new XMLHttpRequest();
+            // Set up a callback function to be executed when the state of the object changes
+            xml.onreadystatechange = function () {
+                // Check if the request has been completed and the response status is OK
+                if (xml.readyState == 4 && xml.status == 200) {
+                    xmlDoc = xml.responseXML;
+                    process();
+                }
+            };
+            // Open a GET request to load the crossword.xml file asynchronously
+            xml.open("GET", "crossword.xml", true);
+            xml.send(null);
+        }
+
+        // Define a JavaScript function to process the XML data
+        function process() {
+            let number;
+            let length;
+            let row;
+            let col;
+            let pos;
+            let ans;
+            let acr = "ACROSS <br><br>".bold();
+            // Find the "across" element in the XML document
+            let across = xmlDoc.getElementsByTagName("across")[0];
+            // Get a list of all the "clue" elements within the "across" element
+            let clueAcr = across.getElementsByTagName("clue");
+            for (let i = 0; i < clueAcr.length; i++) {
+                number = clueAcr[i].getElementsByTagName("number")[0];
+                acr += '<span class=\'acr\' id=h' + number.childNodes[0].nodeValue + '>' + number.childNodes[0].nodeValue + ') ';
+                // Get the "text" element within each "clue" element
+                let txt = clueAcr[i].getElementsByTagName("text")[0];
+                ans = clueAcr[i].getElementsByTagName("ans")[0];
+                acr += txt.childNodes[0].nodeValue + ' (' + ans.childNodes[0].nodeValue.length + ')' + '</span>' + '<br>';
+                row = clueAcr[i].getElementsByTagName("row")[0];
+                col = clueAcr[i].getElementsByTagName("col")[0];
+                length = parseInt((ans.childNodes[0].nodeValue).length);
+                pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                markAsnonEmpty(pos, number.childNodes[0].nodeValue, length, true);
+            }
+            // Display the "ACROSS" clues in the HTML page
+            document.getElementById("hint-across").innerHTML = acr;
+
+            let dwn = "DOWN <br><br>".bold();
+            // Find the "updown" element in the XML document
+            let down = xmlDoc.getElementsByTagName("updown")[0];
+            // Get a list of all the "clue" elements within the "updown" element
+            let clueDwn = down.getElementsByTagName("clue");
+            for (let i = 0; i < clueDwn.length; i++) {
+                number = clueDwn[i].getElementsByTagName("number")[0];
+                dwn += '<span class=\'dwn\' id=h' + number.childNodes[0].nodeValue + '>' + number.childNodes[0].nodeValue + ') ';
+                // Get the "text" element within each "clue" element
+                let txt = clueDwn[i].getElementsByTagName("text")[0];
+                ans = clueDwn[i].getElementsByTagName("ans")[0];
+                dwn += txt.childNodes[0].nodeValue + ' (' + ans.childNodes[0].nodeValue.length + ')' + '</span>' + '<br>';
+                row = clueDwn[i].getElementsByTagName("row")[0];
+                col = clueDwn[i].getElementsByTagName("col")[0];
+                length = parseInt((ans.childNodes[0].nodeValue).length);
+                pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                markAsnonEmpty(pos, number.childNodes[0].nodeValue, length, false);
+            }
+            // Display the "DOWN" clues in the HTML page
+            document.getElementById("hint-updown").innerHTML = dwn;
+        }
+
+        // it change the color of boxes to mark as non empty. Argument true means answer flow is across, false means answer flow is updown also update the marker tag
+        function markAsnonEmpty(pos, number, length, acr) {
+            let rec;
+            let mark = document.getElementById('m' + pos);
+            mark.innerHTML = number;
+            mark.setAttribute('data-hint-number', number);
+
+            if (acr) {
+                mark.setAttribute('data-flow', 'acr');
+                for (let i = 0; i < length; i++) {
+                    rec = document.getElementById(pos + i);
+                    rec.setAttribute('fill', 'yellow');
+                    mark = document.getElementById("m" + (pos + i));
+                    if (mark.getAttribute('data-hint-number') == null) {
+                        mark.setAttribute('data-hint-number', number);
+                        mark.setAttribute('data-flow', 'acr');
+                    }
+                }
+            }
+            else {
+                mark.setAttribute('data-flow', 'dwn');
+                for (let i = 0; i < length; i++) {
+                    rec = document.getElementById(pos + (i * maxRow));
+                    rec.setAttribute('fill', 'yellow');
+                    mark = document.getElementById("m" + (pos + (i * maxRow)));
+                    if (mark.getAttribute('data-hint-number') == null) {
+                        mark.setAttribute('data-hint-number', number);
+                        mark.setAttribute('data-flow', 'dwn');
+                    }
+                }
+            }
+        }
+
+        // check the total crossword
+        function checkCrossword() {
+            console.log('check');
+            let row;
+            let col;
+            let pos;
+            let ans;
+            // Find the "across" element in the XML document
+            let across = xmlDoc.getElementsByTagName("across")[0];
+            // Get a list of all the "clue" elements within the "across" element
+            let clueAcr = across.getElementsByTagName("clue");
+            for (let i = 0; i < clueAcr.length; i++) {
+                row = clueAcr[i].getElementsByTagName("row")[0];
+                col = clueAcr[i].getElementsByTagName("col")[0];
+                ans = clueAcr[i].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                for (let j = 0; j < ans.length; j++) {
+                    if (document.getElementById('t' + (pos + j)).innerHTML == ans[j]) {
+                        document.getElementById((pos + j)).setAttribute('fill', 'green');
+                    }
+                    else {
+                        document.getElementById((pos + j)).setAttribute('fill', 'red');
+                    }
+                }
+            }
+
+
+            // Find the "across" element in the XML document
+            let down = xmlDoc.getElementsByTagName("updown")[0];
+            // Get a list of all the "clue" elements within the "across" element
+            let clueDwn = down.getElementsByTagName("clue");
+            for (let i = 0; i < clueAcr.length; i++) {
+                row = clueDwn[i].getElementsByTagName("row")[0];
+                col = clueDwn[i].getElementsByTagName("col")[0];
+                ans = clueDwn[i].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                for (let j = 0; j < ans.length; j++) {
+                    if (document.getElementById('t' + (pos + (maxRow * j))).innerHTML == ans[j]) {
+                        document.getElementById(pos + (maxRow * j)).setAttribute('fill', 'green');
+                    }
+                    else {
+                        document.getElementById(pos + (maxRow * j)).setAttribute('fill', 'red');
+                    }
+                }
+            }
+        }
+
+        // check a particular clue acccording to the mouse currently pointing to which box
+        function checkClue() {
+            let hintNumber = document.getElementById('m' + curId).getAttribute('data-hint-number');
+            console.log(hintNumber);
+            for (let i = 0; i < maxRow; i++) {
+                for (let j = 0; j < maxCol; j++) {
+                    if (hintNumber == document.getElementById('m' + (i * maxRow + j)).innerHTML) {
+                        let number;
+                        let ans;
+                        let tempCurId = (i * maxRow + j);
+
+                        if (document.getElementById('m' + curId).getAttribute('data-flow') == 'acr') {
+                            let acr = xmlDoc.getElementsByTagName('across')[0];
+                            let clueAcr = acr.getElementsByTagName('clue');
+                            for (let k = 0; k < clueAcr.length; k++) {
+                                number = clueAcr[k].getElementsByTagName("number")[0];
+                                if (number.childNodes[0].nodeValue == hintNumber) {
+                                    ans = clueAcr[k].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                                    console.log('a'+ans.length+ans);
+                                    for (let l = 0; l < ans.length; l++) {
+                                        console.log(ans[l]);
+                                        if (document.getElementById('t'+tempCurId).innerHTML == ans[l]) {
+                                            document.getElementById(tempCurId).setAttribute('fill', 'green');
+                                        }
+                                        else {
+                                            document.getElementById(tempCurId).setAttribute('fill', 'red');
+                                        }
+                                        tempCurId += 1;
+                                    }
+                                }
+                            }
+                        }
+                        else{
+                            console.log('dwn')
+                            let dwn = xmlDoc.getElementsByTagName('updown')[0];
+                            let clueDwn = dwn.getElementsByTagName('clue');
+                            for (let k = 0; k < clueDwn.length; k++) {
+                                number = clueDwn[k].getElementsByTagName("number")[0];
+                                if (number.childNodes[0].nodeValue == hintNumber) {
+                                    ans = clueDwn[k].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                                    console.log('a'+ans.length+ans);
+                                    for (let l = 0; l < ans.length; l++) {
+                                        console.log(ans[l]);
+                                        if (document.getElementById('t'+tempCurId).innerHTML == ans[l]) {
+                                            document.getElementById(tempCurId).setAttribute('fill', 'green');
+                                        }
+                                        else {
+                                            document.getElementById(tempCurId).setAttribute('fill', 'red');
+                                        }
+                                        tempCurId += maxRow;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // place the answer for whole crossword
+        function answer() {
+            if (ansFlag) {
+                ansFlag = false;
+                console.log('check');
+                let row;
+                let col;
+                let pos;
+                let ans;
+                tempFill = [];
+                for (let i = 0; i < maxRow; i++) {
+                    for (let j = 0; j < maxCol; j++) {
+                        tempFill.push(document.getElementById('t' + (i * maxRow + j)).innerHTML);
+                    }
+                }
+                // Find the "across" element in the XML document
+                let across = xmlDoc.getElementsByTagName("across")[0];
+                // Get a list of all the "clue" elements within the "across" element
+                let clueAcr = across.getElementsByTagName("clue");
+                for (let i = 0; i < clueAcr.length; i++) {
+                    row = clueAcr[i].getElementsByTagName("row")[0];
+                    col = clueAcr[i].getElementsByTagName("col")[0];
+                    ans = clueAcr[i].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                    pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                    for (let j = 0; j < ans.length; j++) {
+                        document.getElementById('t' + (pos + j)).innerHTML = ans[j];
+                    }
+                }
+
+                // Find the "across" element in the XML document
+                let down = xmlDoc.getElementsByTagName("updown")[0];
+                // Get a list of all the "clue" elements within the "across" element
+                let clueDwn = down.getElementsByTagName("clue");
+                for (let i = 0; i < clueAcr.length; i++) {
+                    row = clueDwn[i].getElementsByTagName("row")[0];
+                    col = clueDwn[i].getElementsByTagName("col")[0];
+                    ans = clueDwn[i].getElementsByTagName("ans")[0].childNodes[0].nodeValue;
+                    pos = parseInt(row.childNodes[0].nodeValue) * maxRow + parseInt(col.childNodes[0].nodeValue);
+                    for (let j = 0; j < ans.length; j++) {
+                        document.getElementById('t' + (pos + (maxRow * j))).innerHTML = ans[j];
+                    }
+                }
+            }
+        }
+
+        //clear all answer genarated by answer()
+        function clearAnswer() {
+            let k = 0;
+            for (let i = 0; i < maxRow; i++) {
+                for (let j = 0; j < maxCol; j++) {
+                    document.getElementById('t' + (i * maxRow + j)).innerHTML = tempFill[k++];
+                }
+            }
+            ansFlag = true;
+        }
+    </script>
+</head>
+
+<body onload="init(), loadXML()">
+    <svg id="cw" height="450" width="450" style="display:inline-block"></svg>
+    <div class="hint-dialog" style="display:inline-block; position:absolute">
+        <div id="hint-across" style="display:inline-block;box-sizing: border-box;"></div>
+        <div id="hint-updown" style="display:inline-block;box-sizing: border-box;"></div>
+    </div>
+    <div class="button-options">
+        <button id="reset" onclick=location.reload()>Reset</button>
+        <button id="check-crossword" onclick=checkCrossword()>Check Crossword</button>
+        <button id="check-clue" onclick=checkClue()>Check Clue</button>
+        <button id="ans" onclick=answer()>Answer</button>
+        <button id="ans" onclick=clearAnswer()>Clear Answer</button>
+    </div>
+</body>
+
+</html>
