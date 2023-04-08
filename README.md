@@ -10,3 +10,6 @@ a)Initial display when game is loaded first
  By Answer you can see all answers.
  And by Clear Answer all answer loaded by the computer will be cleared
  
+b)When you click on a Box
+![image](https://user-images.githubusercontent.com/120040021/230703021-6fc601c8-9cdc-4ec4-a298-6bb7b28c7e40.png)
+ The Box color become sky-blue and corresponding hint shown to you.
