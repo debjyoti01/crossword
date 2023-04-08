@@ -9,3 +9,4 @@ a)Initial display when game is loaded first
  By Clicking on Check Clue you can check one clue
  By Answer you can see all answers.
  And by Clear Answer all answer loaded by the computer will be cleared
+ 
