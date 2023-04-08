@@ -1,5 +1,7 @@
 # crossword
 Crossword Puzzle using Html JavaScript and xml 
+(this page is for PC not for mobile
+live link is https://debjyoti01.github.io/crossword/ )
 
 a)Initial display when game is loaded first
 ![image](https://user-images.githubusercontent.com/120040021/230702797-e35cf531-1c06-44ae-867b-8ab124545502.png)
