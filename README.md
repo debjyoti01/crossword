@@ -12,4 +12,10 @@ a)Initial display when game is loaded first
  
 b)When you click on a Box
 ![image](https://user-images.githubusercontent.com/120040021/230703021-6fc601c8-9cdc-4ec4-a298-6bb7b28c7e40.png)
- The Box color become sky-blue and corresponding hint shown to you.
+ The Box color become sky-blue and corresponding hint shown to you. You can go one Box to another by arrow keys and mouse cclick also.
+ 
+c) Check Crossword
+![image](https://user-images.githubusercontent.com/120040021/230703152-c55001e4-0b7e-44ab-b6e1-8081b534875d.png)
+You can check one Clue
+![image](https://user-images.githubusercontent.com/120040021/230703182-984c1bc7-c600-4758-b3e2-b3824e13ad18.png)
+Or the whole crossword
